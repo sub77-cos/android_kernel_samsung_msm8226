@@ -8,4 +8,4 @@ mkdir output
 make -C $(pwd) O=output cyanogenmod_matissewifi_defconfig
 make -j64 -C $(pwd) O=output
 
-cp output/arch/arm/boot/Image $(pwd)/arch/arm/boot/zImage
+cp output/arch/arm/boot/zImage $(pwd)/arch/arm/boot/zImage

@@ -1,7 +1,7 @@
 VERSION = 3
 PATCHLEVEL = 4
 SUBLEVEL = 30
-EXTRAVERSION = -gugu0das
+EXTRAVERSION = -tabfour
 NAME = Saber-toothed Squirrel
 
 # *DOCUMENTATION*
