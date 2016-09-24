@@ -55,11 +55,6 @@ static int msm_buf_mngr_buf_done(struct msm_buf_mngr_device *buf_mngr_dev,
 	struct msm_get_bufs *bufs, *save;
 	int ret = -EINVAL;
 
-	if (!buf_info) {
-	    pr_err("%s buf_info NULL\n", __func__);
-	    return ret;
-	}
-
 	spin_lock_irqsave(&buf_mngr_dev->buf_q_spinlock, flags);
 	list_for_each_entry_safe(bufs, save, &buf_mngr_dev->buf_qhead, entry) {
 		if ((bufs->session_id == buf_info->session_id) &&
@@ -109,11 +104,13 @@ static void msm_buf_mngr_sd_shutdown(struct msm_buf_mngr_device *buf_mngr_dev)
 {
 	unsigned long flags;
 	struct msm_get_bufs *bufs, *save;
-		
 	spin_lock_irqsave(&buf_mngr_dev->buf_q_spinlock, flags);
 	if (!list_empty(&buf_mngr_dev->buf_qhead)) {
-		list_for_each_entry_safe(bufs, save, &buf_mngr_dev->buf_qhead, entry) {
-			pr_err("%s: Error delete invalid bufs =%x, ses_id=%d, str_id=%d, idx=%d\n",__func__, (unsigned int)bufs, bufs->session_id,bufs->stream_id, bufs->vb2_buf->v4l2_buf.index);
+		list_for_each_entry_safe(bufs,
+			save, &buf_mngr_dev->buf_qhead, entry) {
+			pr_err("%s: Error delete invalid bufs =%x, ses_id=%d, str_id=%d, idx=%d\n",
+				__func__, (unsigned int)bufs, bufs->session_id,
+				bufs->stream_id, bufs->vb2_buf->v4l2_buf.index);
 			list_del_init(&bufs->entry);
 			kfree(bufs);
 		}
@@ -121,7 +118,21 @@ static void msm_buf_mngr_sd_shutdown(struct msm_buf_mngr_device *buf_mngr_dev)
 	spin_unlock_irqrestore(&buf_mngr_dev->buf_q_spinlock, flags);
 }
 
-static int msm_generic_buf_mngr_open(struct v4l2_subdev *sd,struct v4l2_subdev_fh *fh)
+static int msm_generic_buf_mngr_open(struct v4l2_subdev *sd,
+	struct v4l2_subdev_fh *fh)
+{
+	int rc = 0;
+	struct msm_buf_mngr_device *buf_mngr_dev = v4l2_get_subdevdata(sd);
+	if (!buf_mngr_dev) {
+	pr_err("%s buf manager device NULL\n", __func__);
+	rc = -ENODEV;
+	return rc;
+	}
+	return rc;
+}
+
+static int msm_generic_buf_mngr_close(struct v4l2_subdev *sd,
+	struct v4l2_subdev_fh *fh)
 {
 	int rc = 0;
 	struct msm_buf_mngr_device *buf_mngr_dev = v4l2_get_subdevdata(sd);
@@ -130,25 +141,8 @@ static int msm_generic_buf_mngr_open(struct v4l2_subdev *sd,struct v4l2_subdev_f
 		rc = -ENODEV;
 		return rc;
 	}
-	buf_mngr_dev->msm_buf_mngr_open_cnt++;
 	return rc;
 }
-
-static int msm_generic_buf_mngr_close(struct v4l2_subdev *sd,struct v4l2_subdev_fh *fh)
-{
-	int rc = 0;
-	struct msm_buf_mngr_device *buf_mngr_dev = v4l2_get_subdevdata(sd);
-	if (!buf_mngr_dev) {
-		pr_err("%s buf manager device NULL\n", __func__);
-		rc = -ENODEV;
-		return rc;
-	}
-	buf_mngr_dev->msm_buf_mngr_open_cnt--;
-	if (buf_mngr_dev->msm_buf_mngr_open_cnt == 0)
-		msm_buf_mngr_sd_shutdown(buf_mngr_dev);
-	return rc;
-}
-
 
 static long msm_buf_mngr_subdev_ioctl(struct v4l2_subdev *sd,
 	unsigned int cmd, void *arg)
@@ -180,7 +174,7 @@ static long msm_buf_mngr_subdev_ioctl(struct v4l2_subdev *sd,
 		rc = msm_generic_buf_mngr_close(sd, NULL);
 		break;
 	case MSM_SD_SHUTDOWN:
-	    msm_buf_mngr_sd_shutdown(buf_mngr_dev);
+		msm_buf_mngr_sd_shutdown(buf_mngr_dev);
 		break;
 	default:
 		return -ENOIOCTLCMD;
@@ -192,11 +186,11 @@ static struct v4l2_subdev_core_ops msm_buf_mngr_subdev_core_ops = {
 	.ioctl = msm_buf_mngr_subdev_ioctl,
 };
 
-static const struct v4l2_subdev_internal_ops msm_generic_buf_mngr_subdev_internal_ops = {
-	.open  = msm_generic_buf_mngr_open,
+static const struct v4l2_subdev_internal_ops
+	msm_generic_buf_mngr_subdev_internal_ops = {
+	.open = msm_generic_buf_mngr_open,
 	.close = msm_generic_buf_mngr_close,
 };
-
 
 static const struct v4l2_subdev_ops msm_buf_mngr_subdev_ops = {
 	.core = &msm_buf_mngr_subdev_core_ops,
@@ -227,7 +221,8 @@ static int __init msm_buf_mngr_init(void)
 	msm_buf_mngr_dev->subdev.sd.entity.type = MEDIA_ENT_T_V4L2_SUBDEV;
 	msm_buf_mngr_dev->subdev.sd.entity.group_id =
 		MSM_CAMERA_SUBDEV_BUF_MNGR;
-	msm_buf_mngr_dev->subdev.sd.internal_ops = &msm_generic_buf_mngr_subdev_internal_ops;
+	msm_buf_mngr_dev->subdev.sd.internal_ops =
+		&msm_generic_buf_mngr_subdev_internal_ops;
 	msm_buf_mngr_dev->subdev.close_seq = MSM_SD_CLOSE_4TH_CATEGORY;
 	rc = msm_sd_register(&msm_buf_mngr_dev->subdev);
 	if (rc != 0) {
